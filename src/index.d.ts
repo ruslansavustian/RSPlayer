@@ -4,6 +4,7 @@ export type RSPlayerLoadOptions = {
   autoPlay?: boolean;
   headers?: Record<string, string>;
   loop?: boolean;
+  showSystemControls?: boolean;
   title?: string;
   uri: string;
   volume?: number;

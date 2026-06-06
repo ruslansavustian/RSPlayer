@@ -17,6 +17,7 @@ static void *RSPlayerTimeControlContext = &RSPlayerTimeControlContext;
 @property (nonatomic, assign) BOOL observingItemStatus;
 @property (nonatomic, assign) BOOL observingTimeControlStatus;
 @property (nonatomic, assign) BOOL remoteCommandsConfigured;
+@property (nonatomic, assign) BOOL showSystemControls;
 @property (nonatomic, assign) BOOL shouldPublishNowPlaying;
 @property (nonatomic, copy) NSString *nowPlayingTitle;
 @property (nonatomic, copy) NSString *nowPlayingArtist;
@@ -69,10 +70,14 @@ RCT_EXPORT_METHOD(load:(NSDictionary *)options
     }
 
     BOOL autoPlay = [self boolValue:options[@"autoPlay"] defaultValue:NO];
-    self.shouldPublishNowPlaying = autoPlay;
+    self.showSystemControls = [self boolValue:options[@"showSystemControls"] defaultValue:YES];
+    self.shouldPublishNowPlaying = autoPlay && self.showSystemControls;
     [self activateAudioSession];
-    if (autoPlay) {
+    if (autoPlay && self.showSystemControls) {
       [self configureRemoteCommands];
+    } else if (!self.showSystemControls) {
+      [self teardownRemoteCommands];
+      [self clearNowPlayingInfo];
     }
     [self removeCurrentItemObservers];
     [self removeTimeObserver];
@@ -97,14 +102,20 @@ RCT_EXPORT_METHOD(load:(NSDictionary *)options
     AVPlayer *activePlayer = [self getOrCreatePlayer];
     activePlayer.volume = [self doubleValue:options[@"volume"] defaultValue:1.0];
     [activePlayer replaceCurrentItemWithPlayerItem:self.playerItem];
-    [self configureNowPlayingWithOptions:options];
+    if (self.showSystemControls) {
+      [self configureNowPlayingWithOptions:options];
+    } else {
+      [self clearNowPlayingInfo];
+    }
 
     [self startProgressUpdates];
     [self emitState:@"loading"];
 
     if (autoPlay) {
       [activePlayer play];
-      [self updateNowPlayingInfo];
+      if (self.showSystemControls) {
+        [self updateNowPlayingInfo];
+      }
     }
 
     resolve(nil);
@@ -116,11 +127,18 @@ RCT_EXPORT_METHOD(play:(RCTPromiseResolveBlock)resolve
 {
   dispatch_async(dispatch_get_main_queue(), ^{
     [self activateAudioSession];
-    [self configureRemoteCommands];
-    self.shouldPublishNowPlaying = YES;
+    if (self.showSystemControls) {
+      [self configureRemoteCommands];
+      self.shouldPublishNowPlaying = YES;
+    } else {
+      [self teardownRemoteCommands];
+      [self clearNowPlayingInfo];
+    }
     [[self getOrCreatePlayer] play];
     [self startProgressUpdates];
-    [self updateNowPlayingInfo];
+    if (self.showSystemControls) {
+      [self updateNowPlayingInfo];
+    }
     resolve(nil);
   });
 }

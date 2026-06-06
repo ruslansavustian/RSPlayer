@@ -64,6 +64,7 @@ const player = createRSPlayerController<Track>({
     artist: track.artist,
     artwork: track.artwork,
     autoPlay,
+    showSystemControls: true,
     title: track.title,
     uri: track.uri,
   }),
@@ -99,9 +100,12 @@ type RSPlayerLoadOptions = {
   autoPlay?: boolean;
   headers?: Record<string, string>;
   loop?: boolean;
+  showSystemControls?: boolean;
   volume?: number;
 };
 ```
+
+`showSystemControls` defaults to `true`. Set it to `false` for in-app ambient audio that should not create lock-screen, notification, or remote-control media UI.
 
 ### Methods
 

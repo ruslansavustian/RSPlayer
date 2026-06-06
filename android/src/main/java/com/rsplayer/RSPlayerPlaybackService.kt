@@ -48,7 +48,7 @@ class RSPlayerPlaybackService : MediaSessionService() {
   override fun onDestroy() {
     Log.d(TAG, "service destroyed")
     mediaSession = null
-    RSPlayerEngine.release()
+    RSPlayerEngine.onPlaybackServiceDestroyed()
     super.onDestroy()
   }
 

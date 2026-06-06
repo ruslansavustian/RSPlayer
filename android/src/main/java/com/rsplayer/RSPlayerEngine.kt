@@ -33,6 +33,7 @@ object RSPlayerEngine {
   private var mediaSession: MediaSession? = null
   private var player: ExoPlayer? = null
   private var progressRunnable: Runnable? = null
+  private var showSystemControls = true
 
   private val playerListener =
     object : Player.Listener {
@@ -73,6 +74,7 @@ object RSPlayerEngine {
 
   fun getOrCreateMediaSession(context: Context): MediaSession {
     attach(context)
+    showSystemControls = true
     mediaSession?.let { return it }
 
     Log.d(TAG, "creating media session")
@@ -85,8 +87,11 @@ object RSPlayerEngine {
   fun load(context: Context, options: ReadableMap) {
     attach(context)
     val autoPlay = options.getBooleanOrDefault("autoPlay", false)
-    if (autoPlay) {
+    showSystemControls = options.getBooleanOrDefault("showSystemControls", true)
+    if (showSystemControls && autoPlay) {
       startPlaybackService(context)
+    } else if (!showSystemControls) {
+      hideSystemControls(context)
     }
 
     val uri = options.getString("uri")?.trim()
@@ -96,7 +101,7 @@ object RSPlayerEngine {
 
     Log.d(
       TAG,
-      "load autoPlay=$autoPlay title=${options.getStringOrNull("title") ?: "unknown"}"
+      "load autoPlay=$autoPlay showSystemControls=$showSystemControls title=${options.getStringOrNull("title") ?: "unknown"}"
     )
     val mediaItem =
       MediaItem.Builder()
@@ -125,7 +130,9 @@ object RSPlayerEngine {
   fun play(context: Context) {
     attach(context)
     Log.d(TAG, "play")
-    startPlaybackService(context)
+    if (showSystemControls) {
+      startPlaybackService(context)
+    }
     getOrCreatePlayer(context).play()
     startProgressUpdates()
   }
@@ -177,11 +184,15 @@ object RSPlayerEngine {
   fun release() {
     Log.d(TAG, "release")
     stopProgressUpdates()
-    mediaSession?.release()
-    mediaSession = null
+    releaseMediaSession()
     player?.removeListener(playerListener)
     player?.release()
     player = null
+  }
+
+  fun onPlaybackServiceDestroyed() {
+    Log.d(TAG, "service destroyed")
+    mediaSession = null
   }
 
   private fun startPlaybackService(context: Context) {
@@ -190,6 +201,17 @@ object RSPlayerEngine {
       context.applicationContext,
       Intent(context, RSPlayerPlaybackService::class.java)
     )
+  }
+
+  private fun hideSystemControls(context: Context) {
+    Log.d(TAG, "hide system controls")
+    releaseMediaSession()
+    context.applicationContext.stopService(Intent(context, RSPlayerPlaybackService::class.java))
+  }
+
+  private fun releaseMediaSession() {
+    mediaSession?.release()
+    mediaSession = null
   }
 
   private fun buildSessionActivity(context: Context): PendingIntent? {
