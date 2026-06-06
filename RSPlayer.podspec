@@ -10,7 +10,7 @@ Pod::Spec.new do |s|
   s.license      = package['license']
   s.authors      = { 'Visionaria' => 'hello@visionariaapp.com' }
   s.platforms    = { :ios => '15.1' }
-  s.source       = { :git => 'https://github.com/ruslansavustian/RSPlayer.git', :tag => "#{s.version}" }
+  s.source       = { :git => 'https://github.com/ruslansavustian/RSPlayer.git', :tag => "v#{s.version}" }
   s.source_files = 'ios/**/*.{h,m,mm,swift}'
   s.dependency 'React-Core'
 end

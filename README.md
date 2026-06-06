@@ -22,6 +22,33 @@ For iOS:
 cd ios && pod install
 ```
 
+## Requirements
+
+- React Native `>= 0.75`
+- iOS `>= 15.1`
+- Android `minSdk >= 24`
+- Android `compileSdk >= 35` recommended
+
+## Dependency Model
+
+The npm package intentionally has no regular JavaScript dependencies.
+
+Peer dependencies:
+
+```json
+{
+  "react": "*",
+  "react-native": ">=0.75"
+}
+```
+
+Native dependencies are declared where React Native expects them:
+
+- Android Gradle: `react-android`, `androidx.core`, and AndroidX Media3 ExoPlayer/session modules
+- iOS CocoaPods: `React-Core`
+
+This is why npm can show `0 Dependencies` while the native Android and iOS pieces are still installed during the normal React Native build.
+
 ## Usage
 
 ```ts

@@ -1,6 +1,6 @@
 {
   "name": "@rsplayer/rsplayer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Easy native audio player for React Native with background playback and system media controls.",
   "main": "src/index.js",
   "react-native": "src/index.js",
@@ -9,6 +9,7 @@
     "type": "git",
     "url": "git+https://github.com/ruslansavustian/RSPlayer.git"
   },
+  "author": "Ruslan Savustian",
   "homepage": "https://github.com/ruslansavustian/RSPlayer#readme",
   "bugs": {
     "url": "https://github.com/ruslansavustian/RSPlayer/issues"
@@ -27,9 +28,17 @@
     "audio",
     "player",
     "background-audio",
-    "media-controls"
+    "media-controls",
+    "android",
+    "ios",
+    "media3",
+    "avplayer",
+    "lock-screen-controls"
   ],
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "peerDependencies": {
     "react": "*",
     "react-native": ">=0.75"
