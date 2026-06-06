@@ -8,7 +8,7 @@ Pod::Spec.new do |s|
   s.summary      = package['description']
   s.homepage     = 'https://github.com/ruslansavustian/RSPlayer'
   s.license      = package['license']
-  s.authors      = { 'Visionaria' => 'hello@visionariaapp.com' }
+  s.authors      = { 'Savustian Ruslan' => 'ruslan.elfbot@gmail.com' }
   s.platforms    = { :ios => '15.1' }
   s.source       = { :git => 'https://github.com/ruslansavustian/RSPlayer.git', :tag => "v#{s.version}" }
   s.source_files = 'ios/**/*.{h,m,mm,swift}'
