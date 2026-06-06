@@ -13,7 +13,7 @@ npm install react-native-rsplayer
 Or install directly from GitHub:
 
 ```sh
-npm install github:Platinum-Web-Studio/react-native-rsplayer
+npm install github:ruslansavustian/RSPlayer
 ```
 
 For iOS:
