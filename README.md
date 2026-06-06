@@ -1,4 +1,4 @@
-# react-native-rsplayer
+# @rsplayer/rsplayer
 
 Easy native audio player for React Native.
 
@@ -7,7 +7,7 @@ Easy native audio player for React Native.
 ## Install
 
 ```sh
-npm install react-native-rsplayer
+npm install @rsplayer/rsplayer
 ```
 
 Or install directly from GitHub:
@@ -25,7 +25,7 @@ cd ios && pod install
 ## Usage
 
 ```ts
-import { RSPlayer } from 'react-native-rsplayer';
+import { RSPlayer } from '@rsplayer/rsplayer';
 
 RSPlayer.addListener(event => {
   console.log(event);
@@ -49,7 +49,7 @@ await RSPlayer.seekTo(120);
 For apps that need a reusable playback state layer, `createRSPlayerController` wraps the native module and translates native events into a small subscribable snapshot.
 
 ```ts
-import { createRSPlayerController } from 'react-native-rsplayer';
+import { createRSPlayerController } from '@rsplayer/rsplayer';
 
 type Track = {
   artist?: string;

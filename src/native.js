@@ -9,7 +9,7 @@ const rsPlayerEventEmitter = NativeRSPlayer
 function getNativeRSPlayer() {
   if (!NativeRSPlayer) {
     throw new Error(
-      `RSPlayer native module is not linked for ${Platform.OS}. Rebuild the native app after installing react-native-rsplayer.`
+      `RSPlayer native module is not linked for ${Platform.OS}. Rebuild the native app after installing @rsplayer/rsplayer.`
     );
   }
 

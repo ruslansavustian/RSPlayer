@@ -1,5 +1,5 @@
 {
-  "name": "react-native-rsplayer",
+  "name": "@rsplayer/rsplayer",
   "version": "0.1.0",
   "description": "Easy native audio player for React Native with background playback and system media controls.",
   "main": "src/index.js",
