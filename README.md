@@ -44,6 +44,46 @@ await RSPlayer.play();
 await RSPlayer.seekTo(120);
 ```
 
+## Managed Controller
+
+For apps that need a reusable playback state layer, `createRSPlayerController` wraps the native module and translates native events into a small subscribable snapshot.
+
+```ts
+import { createRSPlayerController } from 'react-native-rsplayer';
+
+type Track = {
+  artist?: string;
+  artwork?: string;
+  duration?: number;
+  title?: string;
+  uri: string;
+};
+
+const player = createRSPlayerController<Track>({
+  getLoadOptions: (track, autoPlay) => ({
+    artist: track.artist,
+    artwork: track.artwork,
+    autoPlay,
+    title: track.title,
+    uri: track.uri,
+  }),
+  getTrackDuration: track => track?.duration ?? 0,
+  onError: error => {
+    console.error(error);
+  },
+});
+
+const unsubscribe = player.subscribe(() => {
+  console.log(player.getSnapshot());
+});
+
+await player.playTrack(track);
+await player.seekBy(15);
+await player.pause();
+
+unsubscribe();
+```
+
 ## API
 
 ### `load(options)`
