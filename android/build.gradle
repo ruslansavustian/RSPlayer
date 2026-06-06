@@ -1,0 +1,24 @@
+apply plugin: 'com.android.library'
+apply plugin: 'org.jetbrains.kotlin.android'
+
+def getExtOrDefault(name, fallback) {
+  return rootProject.ext.has(name) ? rootProject.ext.get(name) : fallback
+}
+
+android {
+  namespace 'com.rsplayer'
+  compileSdk getExtOrDefault('compileSdkVersion', 35)
+
+  defaultConfig {
+    minSdkVersion getExtOrDefault('minSdkVersion', 24)
+    targetSdkVersion getExtOrDefault('targetSdkVersion', 35)
+  }
+}
+
+dependencies {
+  implementation 'com.facebook.react:react-android'
+  implementation 'androidx.core:core:1.16.0'
+  implementation 'androidx.media3:media3-datasource:1.4.1'
+  implementation 'androidx.media3:media3-exoplayer:1.4.1'
+  implementation 'androidx.media3:media3-session:1.4.1'
+}

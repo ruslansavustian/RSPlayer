@@ -1,0 +1,40 @@
+{
+  "name": "react-native-rsplayer",
+  "version": "0.1.0",
+  "description": "Easy native audio player for React Native with background playback and system media controls.",
+  "main": "src/index.js",
+  "react-native": "src/index.js",
+  "types": "src/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Platinum-Web-Studio/react-native-rsplayer.git"
+  },
+  "homepage": "https://github.com/Platinum-Web-Studio/react-native-rsplayer#readme",
+  "bugs": {
+    "url": "https://github.com/Platinum-Web-Studio/react-native-rsplayer/issues"
+  },
+  "files": [
+    "android/build.gradle",
+    "android/src",
+    "ios",
+    "src",
+    "RSPlayer.podspec",
+    "LICENSE",
+    "README.md"
+  ],
+  "keywords": [
+    "react-native",
+    "audio",
+    "player",
+    "background-audio",
+    "media-controls"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "react": "*",
+    "react-native": ">=0.75"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.4"
+  }
+}
