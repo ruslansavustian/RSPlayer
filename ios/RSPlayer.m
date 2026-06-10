@@ -6,19 +6,25 @@
 
 static NSString *const RSPlayerEventName = @"RSPlayerEvent";
 static void *RSPlayerItemStatusContext = &RSPlayerItemStatusContext;
+static void *RSPlayerCueItemStatusContext = &RSPlayerCueItemStatusContext;
 static void *RSPlayerTimeControlContext = &RSPlayerTimeControlContext;
 
 @interface RSPlayer : RCTEventEmitter <RCTBridgeModule>
 @property (nonatomic, strong) AVPlayer *player;
 @property (nonatomic, strong) AVPlayerItem *playerItem;
+@property (nonatomic, strong) AVPlayer *cuePlayer;
+@property (nonatomic, strong) AVPlayerItem *cuePlayerItem;
 @property (nonatomic, strong) id timeObserver;
 @property (nonatomic, assign) BOOL hasListeners;
 @property (nonatomic, assign) BOOL isLooping;
 @property (nonatomic, assign) BOOL observingItemStatus;
+@property (nonatomic, assign) BOOL observingCueItemStatus;
 @property (nonatomic, assign) BOOL observingTimeControlStatus;
 @property (nonatomic, assign) BOOL remoteCommandsConfigured;
 @property (nonatomic, assign) BOOL showSystemControls;
 @property (nonatomic, assign) BOOL shouldPublishNowPlaying;
+@property (nonatomic, copy) RCTPromiseResolveBlock cueResolve;
+@property (nonatomic, copy) RCTPromiseRejectBlock cueReject;
 @property (nonatomic, copy) NSString *nowPlayingTitle;
 @property (nonatomic, copy) NSString *nowPlayingArtist;
 @property (nonatomic, copy) NSString *nowPlayingArtworkURL;
@@ -143,6 +149,54 @@ RCT_EXPORT_METHOD(play:(RCTPromiseResolveBlock)resolve
   });
 }
 
+RCT_EXPORT_METHOD(playCue:(NSDictionary *)options
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+  dispatch_async(dispatch_get_main_queue(), ^{
+    NSString *uri = [options[@"uri"] isKindOfClass:[NSString class]] ? options[@"uri"] : nil;
+    uri = [uri stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]];
+
+    if (uri.length == 0) {
+      reject(@"rsplayer_cue_error", @"Cue URI is empty", nil);
+      return;
+    }
+
+    NSURL *url = [NSURL URLWithString:uri];
+    if (!url) {
+      reject(@"rsplayer_cue_error", @"Cue URI is invalid", nil);
+      return;
+    }
+
+    [self activateAudioSession];
+    [self resolveCueAndRelease];
+
+    NSDictionary *headers =
+      [options[@"headers"] isKindOfClass:[NSDictionary class]] ? options[@"headers"] : nil;
+    NSDictionary *assetOptions = headers ? @{@"AVURLAssetHTTPHeaderFieldsKey": headers} : nil;
+    AVURLAsset *asset = [AVURLAsset URLAssetWithURL:url options:assetOptions];
+    self.cuePlayerItem = [AVPlayerItem playerItemWithAsset:asset];
+    self.cueResolve = resolve;
+    self.cueReject = reject;
+
+    [self.cuePlayerItem addObserver:self
+                         forKeyPath:@"status"
+                            options:NSKeyValueObservingOptionNew
+                            context:RSPlayerCueItemStatusContext];
+    self.observingCueItemStatus = YES;
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleCuePlaybackEnded:)
+                                                 name:AVPlayerItemDidPlayToEndTimeNotification
+                                               object:self.cuePlayerItem];
+
+    AVPlayer *activeCuePlayer = [self getOrCreateCuePlayer];
+    double volume = [self doubleValue:options[@"volume"] defaultValue:1.0];
+    activeCuePlayer.volume = MIN(MAX(volume, 0), 1);
+    [activeCuePlayer replaceCurrentItemWithPlayerItem:self.cuePlayerItem];
+    [activeCuePlayer play];
+  });
+}
+
 RCT_EXPORT_METHOD(pause:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
@@ -164,6 +218,15 @@ RCT_EXPORT_METHOD(stop:(RCTPromiseResolveBlock)resolve
     [self emitState:@"paused"];
     [self emitProgress];
     [self updateNowPlayingInfo];
+    resolve(nil);
+  });
+}
+
+RCT_EXPORT_METHOD(stopCue:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+  dispatch_async(dispatch_get_main_queue(), ^{
+    [self resolveCueAndRelease];
     resolve(nil);
   });
 }
@@ -224,6 +287,7 @@ RCT_EXPORT_METHOD(getState:(RCTPromiseResolveBlock)resolve
 
 - (void)dealloc
 {
+  [self releaseCuePlayer];
   [self releasePlayer];
   [self teardownRemoteCommands];
 }
@@ -242,6 +306,16 @@ RCT_EXPORT_METHOD(getState:(RCTPromiseResolveBlock)resolve
   self.observingTimeControlStatus = YES;
 
   return self.player;
+}
+
+- (AVPlayer *)getOrCreateCuePlayer
+{
+  if (self.cuePlayer) {
+    return self.cuePlayer;
+  }
+
+  self.cuePlayer = [AVPlayer new];
+  return self.cuePlayer;
 }
 
 - (void)activateAudioSession
@@ -588,6 +662,7 @@ RCT_EXPORT_METHOD(getState:(RCTPromiseResolveBlock)resolve
 {
   [self removeTimeObserver];
   [self removeCurrentItemObservers];
+  [self resolveCueAndRelease];
 
   if (self.observingTimeControlStatus) {
     [self.player removeObserver:self
@@ -607,6 +682,35 @@ RCT_EXPORT_METHOD(getState:(RCTPromiseResolveBlock)resolve
                                        error:nil];
 }
 
+- (void)releaseCuePlayer
+{
+  [self removeCueItemObservers];
+  [self.cuePlayer pause];
+  [self.cuePlayer replaceCurrentItemWithPlayerItem:nil];
+  self.cuePlayer = nil;
+  self.cuePlayerItem = nil;
+  self.cueResolve = nil;
+  self.cueReject = nil;
+}
+
+- (void)resolveCueAndRelease
+{
+  RCTPromiseResolveBlock resolve = self.cueResolve;
+  [self releaseCuePlayer];
+  if (resolve) {
+    resolve(nil);
+  }
+}
+
+- (void)rejectCueAndRelease:(NSString *)message error:(NSError *)error
+{
+  RCTPromiseRejectBlock reject = self.cueReject;
+  [self releaseCuePlayer];
+  if (reject) {
+    reject(@"rsplayer_cue_error", message ?: @"Cue playback error", error);
+  }
+}
+
 - (void)removeCurrentItemObservers
 {
   if (self.playerItem) {
@@ -618,6 +722,21 @@ RCT_EXPORT_METHOD(getState:(RCTPromiseResolveBlock)resolve
                            forKeyPath:@"status"
                               context:RSPlayerItemStatusContext];
       self.observingItemStatus = NO;
+    }
+  }
+}
+
+- (void)removeCueItemObservers
+{
+  if (self.cuePlayerItem) {
+    [[NSNotificationCenter defaultCenter] removeObserver:self
+                                                    name:AVPlayerItemDidPlayToEndTimeNotification
+                                                  object:self.cuePlayerItem];
+    if (self.observingCueItemStatus) {
+      [self.cuePlayerItem removeObserver:self
+                              forKeyPath:@"status"
+                                 context:RSPlayerCueItemStatusContext];
+      self.observingCueItemStatus = NO;
     }
   }
 }
@@ -660,6 +779,11 @@ RCT_EXPORT_METHOD(getState:(RCTPromiseResolveBlock)resolve
   [self updateNowPlayingInfo];
 }
 
+- (void)handleCuePlaybackEnded:(NSNotification *)notification
+{
+  [self resolveCueAndRelease];
+}
+
 - (void)observeValueForKeyPath:(NSString *)keyPath
                       ofObject:(id)object
                         change:(NSDictionary<NSKeyValueChangeKey,id> *)change
@@ -674,6 +798,15 @@ RCT_EXPORT_METHOD(getState:(RCTPromiseResolveBlock)resolve
     } else if (item.status == AVPlayerItemStatusFailed) {
       [self emitError:item.error.localizedDescription ?: @"Audio playback error"];
       [self updateNowPlayingInfo];
+    }
+    return;
+  }
+
+  if (context == RSPlayerCueItemStatusContext) {
+    AVPlayerItem *item = (AVPlayerItem *)object;
+    if (item.status == AVPlayerItemStatusFailed) {
+      [self rejectCueAndRelease:item.error.localizedDescription ?: @"Cue playback error"
+                          error:item.error];
     }
     return;
   }

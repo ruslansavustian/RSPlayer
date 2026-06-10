@@ -20,6 +20,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.MediaSession
 import com.facebook.react.bridge.Arguments
+import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReadableMap
 import com.facebook.react.bridge.WritableMap
 
@@ -32,6 +33,8 @@ object RSPlayerEngine {
   private var eventSink: ((WritableMap) -> Unit)? = null
   private var mediaSession: MediaSession? = null
   private var player: ExoPlayer? = null
+  private var cuePlayer: ExoPlayer? = null
+  private var cuePromise: Promise? = null
   private var progressRunnable: Runnable? = null
   private var showSystemControls = true
 
@@ -58,6 +61,19 @@ object RSPlayerEngine {
 
       override fun onPlayerError(error: PlaybackException) {
         emitError(error.message ?: "Audio playback error")
+      }
+    }
+
+  private val cuePlayerListener =
+    object : Player.Listener {
+      override fun onPlaybackStateChanged(playbackState: Int) {
+        if (playbackState == Player.STATE_ENDED) {
+          resolveCueAndRelease()
+        }
+      }
+
+      override fun onPlayerError(error: PlaybackException) {
+        rejectCueAndRelease(error.message ?: "Cue playback error", error)
       }
     }
 
@@ -137,6 +153,33 @@ object RSPlayerEngine {
     startProgressUpdates()
   }
 
+  fun playCue(context: Context, options: ReadableMap, promise: Promise) {
+    attach(context)
+    Log.d(TAG, "play cue")
+
+    val uri = options.getString("uri")?.trim()
+    if (uri.isNullOrEmpty()) {
+      throw IllegalArgumentException("Cue URI is empty")
+    }
+
+    stopCue()
+
+    val mediaItem =
+      MediaItem.Builder()
+        .setUri(Uri.parse(uri))
+        .build()
+    val mediaSourceFactory = DefaultMediaSourceFactory(buildDataSourceFactory(context, options))
+    val mediaSource = mediaSourceFactory.createMediaSource(mediaItem)
+    val activeCuePlayer = createCuePlayer(context)
+
+    cuePromise = promise
+    activeCuePlayer.volume =
+      options.getDoubleOrDefault("volume", 1.0).coerceIn(0.0, 1.0).toFloat()
+    activeCuePlayer.setMediaSource(mediaSource)
+    activeCuePlayer.playWhenReady = true
+    activeCuePlayer.prepare()
+  }
+
   fun pause() {
     Log.d(TAG, "pause")
     player?.pause()
@@ -150,6 +193,11 @@ object RSPlayerEngine {
     player?.seekTo(0)
     emitState("paused")
     emitProgress()
+  }
+
+  fun stopCue() {
+    Log.d(TAG, "stop cue")
+    resolveCueAndRelease()
   }
 
   fun reset(context: Context) {
@@ -184,6 +232,7 @@ object RSPlayerEngine {
   fun release() {
     Log.d(TAG, "release")
     stopProgressUpdates()
+    resolveCueAndRelease()
     releaseMediaSession()
     player?.removeListener(playerListener)
     player?.release()
@@ -246,6 +295,40 @@ object RSPlayerEngine {
         it.addListener(playerListener)
         player = it
       }
+  }
+
+  private fun createCuePlayer(context: Context): ExoPlayer {
+    val audioAttributes =
+      AudioAttributes.Builder()
+        .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+        .setUsage(C.USAGE_MEDIA)
+        .build()
+
+    return ExoPlayer.Builder(context.applicationContext)
+      .build()
+      .also {
+        it.setAudioAttributes(audioAttributes, true)
+        it.addListener(cuePlayerListener)
+        cuePlayer = it
+      }
+  }
+
+  private fun resolveCueAndRelease() {
+    cuePromise?.resolve(null)
+    cuePromise = null
+    releaseCuePlayer()
+  }
+
+  private fun rejectCueAndRelease(message: String, error: Exception) {
+    cuePromise?.reject("rsplayer_cue_error", message, error)
+    cuePromise = null
+    releaseCuePlayer()
+  }
+
+  private fun releaseCuePlayer() {
+    cuePlayer?.removeListener(cuePlayerListener)
+    cuePlayer?.release()
+    cuePlayer = null
   }
 
   private fun buildDataSourceFactory(

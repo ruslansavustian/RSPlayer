@@ -51,6 +51,17 @@ class RSPlayerModule(
   }
 
   @ReactMethod
+  fun playCue(options: ReadableMap, promise: Promise) {
+    mainHandler.post {
+      try {
+        RSPlayerEngine.playCue(reactContext, options, promise)
+      } catch (error: Exception) {
+        promise.reject("rsplayer_cue_error", error.message, error)
+      }
+    }
+  }
+
+  @ReactMethod
   fun pause(promise: Promise) {
     runOnMain(promise) {
       RSPlayerEngine.pause()
@@ -61,6 +72,13 @@ class RSPlayerModule(
   fun stop(promise: Promise) {
     runOnMain(promise) {
       RSPlayerEngine.stop()
+    }
+  }
+
+  @ReactMethod
+  fun stopCue(promise: Promise) {
+    runOnMain(promise) {
+      RSPlayerEngine.stopCue()
     }
   }
 

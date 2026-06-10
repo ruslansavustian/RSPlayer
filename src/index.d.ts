@@ -10,6 +10,12 @@ export type RSPlayerLoadOptions = {
   volume?: number;
 };
 
+export type RSPlayerCueOptions = {
+  headers?: Record<string, string>;
+  uri: string;
+  volume?: number;
+};
+
 export type RSPlayerState =
   | 'buffering'
   | 'ended'
@@ -70,6 +76,8 @@ export type RSPlayerModule = {
   seekTo(seconds: number): Promise<void>;
   setLoop(loop: boolean): Promise<void>;
   setVolume(volume: number): Promise<void>;
+  playCue(options: RSPlayerCueOptions): Promise<void>;
+  stopCue(): Promise<void>;
   stop(): Promise<void>;
 };
 
@@ -110,6 +118,8 @@ export const RSPlayer: {
   seekTo(seconds: number): Promise<void>;
   setLoop(loop: boolean): Promise<void>;
   setVolume(volume: number): Promise<void>;
+  playCue(options: RSPlayerCueOptions): Promise<void>;
+  stopCue(): Promise<void>;
   stop(): Promise<void>;
 };
 

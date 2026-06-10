@@ -4,6 +4,16 @@ Easy native audio player for React Native.
 
 `RSPlayer` is a small native audio module for streaming audio with background playback and system media controls.
 
+## Support
+
+`rsplayer` is free to use.
+
+If this package helped you or saved you time, you can support the project here:
+
+**PayPal:** ruslan.elfbot@gmail.com
+
+Thank you for supporting the first versions of `rsplayer`.
+
 ## Install
 
 ```sh
@@ -71,6 +81,34 @@ await RSPlayer.play();
 await RSPlayer.seekTo(120);
 ```
 
+## Cue Playback
+
+Use `playCue` for short one-shot secondary sounds such as coaching prompts,
+navigation cues, or voice instructions that should play over the main track.
+
+Cue playback uses a separate native player, does not replace the main track, and
+never publishes system media controls, lock-screen metadata, or a media
+notification. The returned promise resolves when the cue finishes, so apps can
+temporarily lower the main player volume and restore it afterward.
+
+Starting a new cue replaces the active cue. To play multiple cues in order,
+await each `playCue` call before starting the next one.
+
+```ts
+await RSPlayer.setVolume(0.25);
+
+try {
+  await RSPlayer.playCue({
+    uri: 'https://example.com/cues/stand-up.mp3',
+    volume: 1,
+  });
+} finally {
+  await RSPlayer.setVolume(1);
+}
+```
+
+Call `stopCue()` to cancel the active cue. This resolves the active cue promise.
+
 ## Managed Controller
 
 For apps that need a reusable playback state layer, `createRSPlayerController` wraps the native module and translates native events into a small subscribable snapshot.
@@ -132,13 +170,23 @@ type RSPlayerLoadOptions = {
 };
 ```
 
+```ts
+type RSPlayerCueOptions = {
+  uri: string;
+  headers?: Record<string, string>;
+  volume?: number;
+};
+```
+
 `showSystemControls` defaults to `true`. Set it to `false` for in-app ambient audio that should not create lock-screen, notification, or remote-control media UI.
 
 ### Methods
 
 - `RSPlayer.play()`
 - `RSPlayer.pause()`
+- `RSPlayer.playCue(options)`
 - `RSPlayer.stop()`
+- `RSPlayer.stopCue()`
 - `RSPlayer.reset()`
 - `RSPlayer.seekTo(seconds)`
 - `RSPlayer.setLoop(loop)`

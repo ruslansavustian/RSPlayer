@@ -32,9 +32,11 @@ export const RSPlayer = {
   load: options => getNativeRSPlayer().load(options),
   pause: () => getNativeRSPlayer().pause(),
   play: () => getNativeRSPlayer().play(),
+  playCue: options => getNativeRSPlayer().playCue(options),
   reset: () => getNativeRSPlayer().reset(),
   seekTo: seconds => getNativeRSPlayer().seekTo(seconds),
   setLoop: loop => getNativeRSPlayer().setLoop(loop),
   setVolume: volume => getNativeRSPlayer().setVolume(volume),
   stop: () => getNativeRSPlayer().stop(),
+  stopCue: () => getNativeRSPlayer().stopCue(),
 };
