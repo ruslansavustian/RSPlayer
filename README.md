@@ -1,8 +1,11 @@
 # @rsplayer/rsplayer
 
-Easy native audio player for React Native.
+Native audio player and video-only view for React Native.
 
-`RSPlayer` is a small native audio module for streaming audio with background playback and system media controls.
+`RSPlayer` is a small native audio module for streaming audio with background
+playback and system media controls. The package also exports `RSVideo`, a
+video-only native view for muted visual clips that should not compete with the
+active audio session.
 
 ## Support
 
@@ -33,6 +36,27 @@ cd ios && pod install
 ```
 
 ## Changelog
+
+### 0.3.0
+
+- Added `RSVideo`, a native video-only view for muted timeline/session clips.
+  Use it when video is only visual context and audio is handled separately by
+  `RSPlayer`.
+- `RSVideo` is designed for exercise timelines, guided sessions, previews, and
+  similar screens where a muted clip should play behind or beside an active
+  soundtrack, voice-over, or cue flow.
+- Android `RSVideo` disables ExoPlayer audio tracks through `DefaultTrackSelector`
+  and calls `setAudioAttributes(..., false)`, so muted visual clips do not request
+  Android audio focus from the active `RSPlayer` session.
+- iOS `RSVideo` uses `AVPlayerLayer`, removes audible media selection, and
+  disables `AVPlayerItem` audio tracks so visual clips do not interfere with the
+  app audio session.
+- `RSVideo` supports the focused subset needed for visual playback: `source`,
+  `paused`, `muted`, `resizeMode`, load/buffer/error callbacks, and
+  `ref.current?.seek(seconds)`.
+- Android `RSVideo` forces a second `PlayerView` layout pass when resize mode or
+  video size changes, matching `react-native-video` cover behavior and avoiding
+  vertically shifted crops in full-screen timeline views.
 
 ### 0.2.3
 
@@ -70,7 +94,7 @@ Peer dependencies:
 
 Native dependencies are declared where React Native expects them:
 
-- Android Gradle: `react-android`, `androidx.core`, and AndroidX Media3 ExoPlayer/session modules
+- Android Gradle: `react-android`, `androidx.core`, and AndroidX Media3 ExoPlayer/session/UI modules
 - iOS CocoaPods: `React-Core`
 
 This is why npm can show `0 Dependencies` while the native Android and iOS pieces are still installed during the normal React Native build.
@@ -78,7 +102,7 @@ This is why npm can show `0 Dependencies` while the native Android and iOS piece
 ## Usage
 
 ```ts
-import { RSPlayer } from '@rsplayer/rsplayer';
+import { RSPlayer, RSVideo } from '@rsplayer/rsplayer';
 
 RSPlayer.addListener(event => {
   console.log(event);
@@ -95,6 +119,109 @@ await RSPlayer.load({
 await RSPlayer.pause();
 await RSPlayer.play();
 await RSPlayer.seekTo(120);
+```
+
+## Video-Only Playback
+
+Use `RSVideo` for muted video clips when your app already has a separate audio
+session, soundtrack, voice-over, or cue system.
+
+This component exists because a normal video player can still touch platform
+audio systems even when the video is muted. On Android that can request or change
+audio focus; on iOS the video item can still expose audible media tracks to the
+audio session. In guided sessions this can interrupt an active `RSPlayer`
+soundtrack or voice-over flow.
+
+`RSVideo` is not a general replacement for a full video player. It intentionally
+does not provide video sound, system media controls, fullscreen, background
+video, or picture-in-picture. Use it for visual-only clips where audio belongs to
+`RSPlayer`.
+
+```tsx
+import { RSVideo } from '@rsplayer/rsplayer';
+
+function ExerciseSegmentVideo({ activeSegment, isPlaying, videoControls }) {
+  return (
+    <RSVideo
+      key={activeSegment.id}
+      muted
+      onBuffer={videoControls.onVideoBuffer}
+      onError={videoControls.onVideoError}
+      onLoad={videoControls.onVideoLoad}
+      onLoadStart={videoControls.onVideoLoadStart}
+      paused={!isPlaying}
+      ref={videoControls.videoRef}
+      resizeMode="cover"
+      source={{ uri: activeSegment.playbackUrl }}
+      style={{ height: 240, width: '100%' }}
+    />
+  );
+}
+```
+
+### RSVideo Props
+
+`RSVideo` accepts a focused visual-playback API:
+
+```ts
+type RSVideoProps = {
+  source: { uri: string };
+  paused?: boolean;
+  muted?: boolean;
+  resizeMode?: 'contain' | 'cover' | 'stretch';
+  style?: StyleProp<ViewStyle>;
+  onLoadStart?: () => void;
+  onLoad?: (event: {
+    duration: number;
+    naturalSize?: {
+      width: number;
+      height: number;
+    };
+  }) => void;
+  onBuffer?: (event: { isBuffering: boolean }) => void;
+  onError?: (event: {
+    error?: {
+      error?: string;
+      errorString?: string;
+      localizedDescription?: string;
+      localizedFailureReason?: string;
+    };
+  }) => void;
+};
+```
+
+- `source`: required video URI, for example `source={{ uri: clipUrl }}`.
+- `paused`: controls playback. Pass `true` to pause and `false` to play.
+  Default is `false`.
+- `muted`: keeps video silent. Default is `true`. `RSVideo` is built for
+  visual-only playback, so keep this enabled when `RSPlayer` owns the audio.
+- `resizeMode`: controls how the video fits the view. Use `cover` for full-screen
+  timeline backgrounds, `contain` to show the whole video, or `stretch` to fill
+  without preserving aspect ratio. Default is `contain`.
+- `style`: React Native view style. For full-screen video, use an absolute-fill
+  style or a parent with a fixed size.
+- `onLoadStart`: fires when a new video source starts loading.
+- `onLoad`: fires when metadata is ready and includes `duration` in seconds plus
+  optional `naturalSize`.
+- `onBuffer`: fires with `{ isBuffering }` whenever native buffering state
+  changes.
+- `onError`: fires with native error details if playback fails.
+
+Use a ref when the visual timeline must jump to a specific point:
+
+```tsx
+const videoRef = useRef<RSVideoRef | null>(null);
+
+videoRef.current?.seek(12.5);
+
+<RSVideo
+  ref={videoRef}
+  muted
+  paused={!isPlaying}
+  resizeMode="cover"
+  source={{ uri: activeSegment.playbackUrl }}
+  style={StyleSheet.absoluteFill}
+/>;
 ```
 
 ## Cue Playback
@@ -198,6 +325,8 @@ type RSPlayerCueOptions = {
 
 ### Methods
 
+Audio methods:
+
 - `RSPlayer.play()`
 - `RSPlayer.pause()`
 - `RSPlayer.playCue(options)`
@@ -209,6 +338,11 @@ type RSPlayerCueOptions = {
 - `RSPlayer.setVolume(volume)`
 - `RSPlayer.getState()`
 - `RSPlayer.addListener(listener)`
+
+Video-only component:
+
+- `<RSVideo />`
+- `RSVideoRef.seek(seconds)`
 
 ### Events
 

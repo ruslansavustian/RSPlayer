@@ -1,3 +1,6 @@
+import type * as React from 'react';
+import type { StyleProp, ViewStyle } from 'react-native';
+
 export type RSPlayerLoadOptions = {
   artist?: string;
   artwork?: string;
@@ -108,6 +111,47 @@ export type RSPlayerController<Track = unknown> = {
   syncNativeState(): Promise<void>;
 };
 
+export type RSVideoLoadEvent = {
+  duration: number;
+  naturalSize?: {
+    width: number;
+    height: number;
+  };
+};
+
+export type RSVideoBufferEvent = {
+  isBuffering: boolean;
+};
+
+export type RSVideoErrorEvent = {
+  error?: {
+    error?: string;
+    errorString?: string;
+    localizedDescription?: string;
+    localizedFailureReason?: string;
+  };
+};
+
+export type RSVideoRef = {
+  seek(seconds: number): void;
+};
+
+export type RSVideoResizeMode = 'contain' | 'cover' | 'stretch';
+
+export type RSVideoProps = {
+  muted?: boolean;
+  onBuffer?: (event: RSVideoBufferEvent) => void;
+  onError?: (event: RSVideoErrorEvent) => void;
+  onLoad?: (event: RSVideoLoadEvent) => void;
+  onLoadStart?: () => void;
+  paused?: boolean;
+  resizeMode?: RSVideoResizeMode;
+  source: {
+    uri: string;
+  };
+  style?: StyleProp<ViewStyle>;
+};
+
 export const RSPlayer: {
   addListener(listener: (event: RSPlayerEvent) => void): () => void;
   getState(): Promise<RSPlayerSnapshot>;
@@ -122,6 +166,10 @@ export const RSPlayer: {
   stopCue(): Promise<void>;
   stop(): Promise<void>;
 };
+
+export const RSVideo: React.ForwardRefExoticComponent<
+  RSVideoProps & React.RefAttributes<RSVideoRef>
+>;
 
 export function createRSPlayerController<Track = unknown>(
   options: RSPlayerControllerOptions<Track>
