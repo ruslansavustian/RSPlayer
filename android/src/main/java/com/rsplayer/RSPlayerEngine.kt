@@ -18,6 +18,7 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.session.MediaSession
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.Promise
@@ -61,6 +62,19 @@ object RSPlayerEngine {
 
       override fun onPlayerError(error: PlaybackException) {
         emitError(error.message ?: "Audio playback error")
+      }
+
+      override fun onPositionDiscontinuity(
+        oldPosition: Player.PositionInfo,
+        newPosition: Player.PositionInfo,
+        reason: Int
+      ) {
+        if (
+          reason == Player.DISCONTINUITY_REASON_SEEK ||
+            reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT
+        ) {
+          emitProgress()
+        }
       }
     }
 
@@ -124,7 +138,7 @@ object RSPlayerEngine {
         .setUri(Uri.parse(uri))
         .setMediaMetadata(buildMetadata(options))
         .build()
-    val mediaSourceFactory = DefaultMediaSourceFactory(buildDataSourceFactory(context, options))
+    val mediaSourceFactory = buildMediaSourceFactory(context, options)
     val mediaSource = mediaSourceFactory.createMediaSource(mediaItem)
     val activePlayer = getOrCreatePlayer(context)
 
@@ -168,7 +182,7 @@ object RSPlayerEngine {
       MediaItem.Builder()
         .setUri(Uri.parse(uri))
         .build()
-    val mediaSourceFactory = DefaultMediaSourceFactory(buildDataSourceFactory(context, options))
+    val mediaSourceFactory = buildMediaSourceFactory(context, options)
     val mediaSource = mediaSourceFactory.createMediaSource(mediaItem)
     val activeCuePlayer = createCuePlayer(context)
 
@@ -208,8 +222,9 @@ object RSPlayerEngine {
   }
 
   fun seekTo(seconds: Double) {
-    player?.seekTo((seconds.coerceAtLeast(0.0) * 1000).toLong())
-    emitProgress()
+    val activePlayer = player ?: return
+    val positionMs = (seconds.coerceAtLeast(0.0) * 1000).toLong()
+    activePlayer.seekTo(positionMs)
   }
 
   fun setVolume(volume: Double) {
@@ -307,7 +322,7 @@ object RSPlayerEngine {
     return ExoPlayer.Builder(context.applicationContext)
       .build()
       .also {
-        it.setAudioAttributes(audioAttributes, true)
+        it.setAudioAttributes(audioAttributes, false)
         it.addListener(cuePlayerListener)
         cuePlayer = it
       }
@@ -348,6 +363,18 @@ object RSPlayerEngine {
     }
 
     return DefaultDataSource.Factory(context.applicationContext, httpFactory)
+  }
+
+  private fun buildMediaSourceFactory(
+    context: Context,
+    options: ReadableMap
+  ): DefaultMediaSourceFactory {
+    val extractorsFactory =
+      DefaultExtractorsFactory()
+        .setConstantBitrateSeekingEnabled(true)
+        .setConstantBitrateSeekingAlwaysEnabled(true)
+
+    return DefaultMediaSourceFactory(buildDataSourceFactory(context, options), extractorsFactory)
   }
 
   private fun buildMetadata(options: ReadableMap): MediaMetadata {

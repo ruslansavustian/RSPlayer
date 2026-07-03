@@ -20,5 +20,6 @@ dependencies {
   implementation 'androidx.core:core:1.16.0'
   implementation 'androidx.media3:media3-datasource:1.4.1'
   implementation 'androidx.media3:media3-exoplayer:1.4.1'
+  implementation 'androidx.media3:media3-extractor:1.4.1'
   implementation 'androidx.media3:media3-session:1.4.1'
 }

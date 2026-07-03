@@ -39,6 +39,10 @@ function getDefaultTrackDuration(track) {
   return track?.duration && track.duration > 0 ? track.duration : 0;
 }
 
+function getFiniteNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
 export function createRSPlayerController(options) {
   const player = options.player ?? RSPlayer;
   const getTrackDuration = options.getTrackDuration ?? getDefaultTrackDuration;
@@ -319,7 +323,44 @@ export function createRSPlayerController(options) {
       }));
     },
     seekBy: async offset => {
-      await controller.seekTo(snapshot.progress.position + offset);
+      const current = snapshot;
+      if (!current.activeTrack) {
+        return;
+      }
+
+      let basePosition = current.progress.position;
+      let duration = current.progress.duration;
+
+      try {
+        const nativeState = await player.getState();
+        const nativePosition = getFiniteNumber(nativeState?.position);
+        const nativeDuration = getFiniteNumber(nativeState?.duration);
+
+        if (nativePosition != null) {
+          basePosition = nativePosition;
+        }
+        if (nativeDuration != null && nativeDuration > 0) {
+          duration = nativeDuration;
+        }
+      } catch {
+        // Fall back to the last JS snapshot if native state is unavailable.
+      }
+
+      if (snapshot.activeTrack !== current.activeTrack) {
+        return;
+      }
+
+      const nextPosition = clampSeekPosition(basePosition + offset, duration);
+
+      runCommand(() => player.seekTo(nextPosition));
+      updateSnapshot(previous => ({
+        ...previous,
+        ended: false,
+        progress: {
+          ...previous.progress,
+          position: nextPosition,
+        },
+      }));
     },
     seekTo: async position => {
       if (!snapshot.activeTrack) {

@@ -32,6 +32,22 @@ For iOS:
 cd ios && pod install
 ```
 
+## Changelog
+
+### 0.2.3
+
+- Fixed Android cue playback stealing audio focus from the main player. `playCue`
+  now keeps the active soundtrack/session alive while short voice prompts play on
+  the secondary cue player.
+- Fixed Android seeking for progressive MP3/audio streams that ExoPlayer
+  previously reported as non-seekable. Android media sources now enable
+  constant-bitrate extractor seeking, so `seekTo` and controller `seekBy`
+  can jump to the requested position instead of restarting from the beginning.
+- Improved managed controller `seekBy` accuracy by reading the current native
+  player state before applying the relative seek offset.
+- Android progress is now emitted after ExoPlayer reports the seek position
+  change, avoiding stale progress immediately after `seekTo`.
+
 ## Requirements
 
 - React Native `>= 0.75`
